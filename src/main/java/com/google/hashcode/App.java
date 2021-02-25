@@ -1,10 +1,9 @@
 package com.google.hashcode;
 
-import com.google.hashcode.solver.DummySolver;
-import com.google.hashcode.solver.FinalSolver;
-import com.google.hashcode.solver.NewSolver;
+import com.google.hashcode.solver.FirstSolver;
+import com.google.hashcode.solver.SecondSolver;
 import com.google.hashcode.solver.Solver;
-import com.google.hashcode.solver.SolverB;
+import lombok.extern.log4j.Log4j2;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -14,62 +13,88 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.Duration;
+import java.time.LocalTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
+@Log4j2
 public class App {
 
-  private static final String root = "/home/gcalbi/workspace/googlehashcode2020/src/main"
+  private static final String root = "/Users/gcalbi/workspace/google_hash_code_2021/src/main"
       + "/resources/";
 
-  private static String getStatementName(String letter) {
-    switch (letter) {
-      case "a":
-        return "a_example";
-      case "b":
-        return "b_read_on";
-      case "c":
-        return "c_incunabula";
-      case "e":
-        return "e_so_many_books";
-      case "d":
-        return "d_tough_choices";
-      case "f":
-        return "f_libraries_of_the_world";
+  private static Solver getSolver(String name) {
+    switch (name) {
+      case "1":
+        return new FirstSolver();
+      case "2":
+        return new SecondSolver();
     }
     return null;
   }
 
-  public static void main(String[] args) {
-    solveAll();
+  public static void main(String[] args) throws IOException {
+    log.info("Program started with args " + Arrays.toString(args));
+    String statementLetter = args[0];
+    Solver solver = getSolver(args[1]);
+    if (statementLetter.equalsIgnoreCase("all")) {
+      solveAll(solver);
+    } else {
+      solve(statementLetter, solver);
+    }
+    System.exit(0);
   }
 
-  private static void solveSingle() {
-    String letter = "e";
-    Solver solver = new DummySolver();
-    solve(letter, solver);
+  private static void solveAll(Solver solver) throws IOException {
+    log.info("Solving all statements at once");
+    solve("a", solver);
+    solve("b", solver);
+    solve("c", solver);
+    solve("d", solver);
+    solve("e", solver);
+    solve("f", solver);
   }
 
-  private static void solveAll() {
-    solve("a", new NewSolver());
-    solve("b", new NewSolver());
-    solve("c", new NewSolver());
-    solve("d", new NewSolver());
-    solve("e", new NewSolver());
-    solve("f", new NewSolver());
-  }
-
-  private static void solve(String letter, Solver solver) {
-    String statementName = getStatementName(letter);
-    List<String> lines = fileToStrings("/" + statementName + ".txt");
+  private static void solve(String letter, Solver solver) throws IOException {
+    log.info(String.format(
+        "Solving statement %s with solver %s",
+        letter,
+        solver.getClass().getSimpleName()
+    ));
+    List<String> lines = fileToStrings("/" + letter + ".txt");
     Path file = Paths.get(
-        root + "/output/" + statementName + "_" + solver.getClass().getSimpleName() + ".txt");
+        root + "/output/" + letter + "_" + solver.getClass().getSimpleName() + ".txt");
     List<String> ls = new ArrayList<>();
-    ls.add(new Scanner().init(lines).run(solver).buildOutput());
+    Scanner scanner = new Scanner();
+    LocalTime t = LocalTime.now();
+    log.info("Initializing scanner");
+    assert lines != null;
+    scanner.init(lines);
+    log.info(
+        "Scanner initialization completed in " + Duration.between(t, LocalTime.now()).toString());
+
+    t = LocalTime.now();
+    log.info("Running solver");
+    scanner.run(solver);
+    log.info(
+        "Solver run in " + Duration.between(t, LocalTime.now()).toString());
+
+    log.warn("Simulation score = " + scanner.computeScore());
+    
+    t = LocalTime.now();
+    log.info("Building output");
+    String output = scanner.buildOutput();
+    log.info(
+        "Output built in " + Duration.between(t, LocalTime.now()).toString());
+    ls.add(output);
+
     try {
       Files.write(file, ls, StandardCharsets.UTF_8);
     } catch (IOException e) {
-      e.printStackTrace();
+      log.error(e);
+      throw e;
     }
   }
 
